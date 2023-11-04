@@ -89,6 +89,16 @@ public class CertificateManager {
 		return builder.toString();
 	}
 
+	public void appendPublicKeyFingerprint(StringBuilder builder, PublicKey pub) {
+		try {
+			append(builder, NLS.str("certificate.serialMD5"), getThumbPrint(pub, "MD5"));
+			append(builder, NLS.str("certificate.serialSHA1"), getThumbPrint(pub, "SHA-1"));
+			append(builder, NLS.str("certificate.serialSHA256"), getThumbPrint(pub, "SHA-256"));
+		} catch (Exception e) {
+			LOG.error("Failed to parse fingerprint", e);
+		}
+	}
+
 	public String generatePublicKey() {
 		PublicKey publicKey = x509cert.getPublicKey();
 		if (publicKey instanceof RSAPublicKey) {
@@ -110,6 +120,8 @@ public class CertificateManager {
 				pub.getModulus().toString(2).length()));
 		append(builder, NLS.str("certificate.serialPubKeyModulus"), pub.getModulus().toString(10));
 
+		appendPublicKeyFingerprint(builder, pub);
+
 		return builder.toString();
 	}
 
@@ -118,6 +130,8 @@ public class CertificateManager {
 		StringBuilder builder = new StringBuilder();
 		append(builder, NLS.str("certificate.serialPubKeyType"), pub.getAlgorithm());
 		append(builder, NLS.str("certificate.serialPubKeyY"), pub.getY().toString(10));
+
+		appendPublicKeyFingerprint(builder, pub);
 
 		return builder.toString();
 	}
@@ -155,6 +169,15 @@ public class CertificateManager {
 
 	public static String getThumbPrint(X509Certificate cert, String type)
 			throws NoSuchAlgorithmException, CertificateEncodingException {
+		MessageDigest md = MessageDigest.getInstance(type); // lgtm [java/weak-cryptographic-algorithm]
+		byte[] der = cert.getEncoded();
+		md.update(der);
+		byte[] digest = md.digest();
+		return hexify(digest);
+	}
+
+	public static String getThumbPrint(PublicKey cert, String type)
+			throws NoSuchAlgorithmException {
 		MessageDigest md = MessageDigest.getInstance(type); // lgtm [java/weak-cryptographic-algorithm]
 		byte[] der = cert.getEncoded();
 		md.update(der);
